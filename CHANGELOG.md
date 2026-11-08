@@ -1,5 +1,30 @@
 # Changelog
 
+## v1.1.1 (Build 27) — community pre-release
+
+Same as v1.1.0, plus:
+
+- **Xbox GIP rumble holds until the next level.** Rumble packets used repeat count `0x00`, so
+  the motors ran for one 2.55 s period and then stopped while the game still asked for rumble.
+  They now use `0xFF`, as the Linux xpad driver does. *Console-tested* with a wired Xbox
+  Series X|S (FW 10.60).
+- **"Test rumble" button for USB pads** in Controller settings, backed by
+  `POST /api/usb/rumble_test?slot=N`. It runs the motors for 1 s, ignoring game rumble
+  meanwhile. *Console-tested* with a wired Xbox Series X|S.
+- **Diagnostics:** the log reports game rumble from the haptics capture (every 5 s in which
+  some arrives) and each rumble level sent to a USB pad (at most once a second, plus every stop).
+
+### Known issue: game rumble does not reach USB pads
+Game rumble for USB pads depends on the Avcap2 haptics capture from PR #18 ("Game rumble via
+Avcap2" in Settings). With a wired Xbox Series X|S in *Marvel Rivals* on FW 10.60, the stream
+opened and delivered about 47 chunks a second, but every chunk was silent. This held:
+- with the DualSense disconnected;
+- emulating a DualSense and a DualShock 4;
+- after binding the virtual pad to the signed-in user (`POST /api/rebind?slot=0`).
+
+A real DualSense rumbled in the same game. The USB rumble path itself works (see Test rumble),
+so the console does not route this game's rumble to the capture for these virtual pads.
+
 ## v1.1.0 (Build 24) — community pre-release
 
 Built on top of upstream v1.0.4 (Build 19). It combines the pull requests that were open

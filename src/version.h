@@ -3,7 +3,7 @@
 
 #define ANYPAD_NAME             "OmniPad PS5"
 #define ANYPAD_VERSION          "1.1.1"
-#define ANYPAD_BUILD            26
+#define ANYPAD_BUILD            27
 #define ANYPAD_AUTHOR           "Diego Lima & PS5 Scene Community"
 #define ANYPAD_DESCRIPTION      "Plug & Play USB & 2.4G Dongle Gamepad Engine for PS5 (FW 7.00 - 13.60)"
 

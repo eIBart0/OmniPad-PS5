@@ -304,14 +304,15 @@ static void *thread_main(void *arg)
             pthread_mutex_unlock(&g_mx);
             record_chunk(buf, k, meta, got);
             chunks++;
-            /* Diagnostics: once every 5 s with data, how much of it was rumble. */
+            /* Diagnostics: every 5 s in which some of the data was rumble, how much. */
             win_chunks++;
             if (ls | lw) win_rumble++;
             if (ls > win_max_s) win_max_s = ls;
             if (lw > win_max_w) win_max_w = lw;
             if (now - win_start >= 5000) {
-                log_line("haptic: last 5 s: %u chunks, %u with rumble, max strong %u weak %u",
-                         win_chunks, win_rumble, win_max_s, win_max_w);
+                if (win_rumble)
+                    log_line("haptic: last 5 s: %u chunks, %u with rumble, max strong %u weak %u",
+                             win_chunks, win_rumble, win_max_s, win_max_w);
                 win_start = now;
                 win_chunks = win_rumble = 0;
                 win_max_s = win_max_w = 0;
@@ -320,13 +321,6 @@ static void *thread_main(void *arg)
             continue;
         }
         if ((unsigned)got == AVCAP2_EMPTY || (unsigned)got == AVCAP2_OVERRUN) {
-            if (now - win_start >= 5000) {
-                log_line("haptic: last 5 s: %u chunks, %u with rumble, max strong %u weak %u",
-                         win_chunks, win_rumble, win_max_s, win_max_w);
-                win_start = now;
-                win_chunks = win_rumble = 0;
-                win_max_s = win_max_w = 0;
-            }
             usleep(4000);
             continue;
         }
