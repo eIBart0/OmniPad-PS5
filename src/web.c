@@ -488,15 +488,9 @@ static void handle_client(int cfd)
         char body[64];
         int blen = snprintf(body, sizeof body, "{\"ok\":%s}", ok ? "true" : "false");
         res_len = snprintf(res, sizeof(res),
-            "HTTP/1.1 200 OK
-Content-Type: application/json
-"
-            "Access-Control-Allow-Origin: *
-Content-Length: %d
-"
-            "Connection: close
-
-%s", blen, body);
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+            "Access-Control-Allow-Origin: *\r\nContent-Length: %d\r\n"
+            "Connection: close\r\n\r\n%s", blen, body);
         write(cfd, res, (size_t)res_len);
     }
     else if (strncmp(req, "POST /api/bt/haptic", 19) == 0) {
