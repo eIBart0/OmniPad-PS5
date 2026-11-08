@@ -481,6 +481,24 @@ static void handle_client(int cfd)
             ok ? "200 OK" : "503 Service Unavailable", strlen(body), body);
         write(cfd, res, (size_t)res_len);
     }
+    else if (strncmp(req, "POST /api/usb/rumble_test", 25) == 0) {
+        const char *p = strstr(req, "slot=");
+        int slot = p ? atoi(p + 5) : -1;
+        int ok = usb_hotplug_rumble_test(slot, 200, 200, 1000);
+        char body[64];
+        int blen = snprintf(body, sizeof body, "{\"ok\":%s}", ok ? "true" : "false");
+        res_len = snprintf(res, sizeof(res),
+            "HTTP/1.1 200 OK
+Content-Type: application/json
+"
+            "Access-Control-Allow-Origin: *
+Content-Length: %d
+"
+            "Connection: close
+
+%s", blen, body);
+        write(cfd, res, (size_t)res_len);
+    }
     else if (strncmp(req, "POST /api/bt/haptic", 19) == 0) {
         const char *p = strstr(req, "on=");
         int on = p && (p[3] == '1' || p[3] == 't');

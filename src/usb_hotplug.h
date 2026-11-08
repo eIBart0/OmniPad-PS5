@@ -16,6 +16,8 @@ int  usb_hotplug_any(void);
  * (Xbox 360 / XInput incl. 8BitDo, Xbox One GIP, DualShock 4, Switch Pro). The weak
  * motor is dropped if that pad's settings turn the small motor off. */
 void usb_hotplug_set_rumble(int slot, uint8_t strong, uint8_t weak);
+/* Runs the motors for ms (100..3000) regardless of game rumble. 0 if no USB pad in that slot. */
+int  usb_hotplug_rumble_test(int slot, uint8_t strong, uint8_t weak, int ms);
 /* Re-read every claimed pad's settings file (after the page saves one). */
 void usb_hotplug_reload_configs(void);
 

@@ -44,6 +44,7 @@ typedef struct {
     uint8_t               sw_counter;       /* Switch: output report packet counter */
     int                   sw_vib_on;        /* Switch: vibration enabled (subcommand 0x48) */
     long                  rum_sent_at;      /* Switch: last rumble report, for the refresh */
+    volatile long         rum_test_until;   /* dashboard rumble test: game levels ignored until then */
     volatile int          small_motor;      /* from <map dir>/USB_VVVV_PPPP.map; 1 = on */
 
 #ifdef __PROSPERO__
@@ -466,11 +467,17 @@ static void switch_rumble_block(uint8_t *b, uint8_t strong, uint8_t weak)
 /* Sends the pending rumble level if it changed. Called from the reader thread,
  * which owns the device. Formats:
  *   Switch Pro (USB): subcommand 0x48 once, then report 10 cnt + 2 x 4-byte HD rumble
- *   Xbox One GIP:  09 00 seq 09 00 0F LT RT L R dur delay repeat (motors 0..100)
+ *   Xbox One GIP:  09 00 seq 09 00 0F LT RT L R on off repeat (motors 0..100; on/off in
+ *                  10 ms units, repeat 0xFF so a level holds until the next one, as in xpad)
  *   XInput / 360 (incl. 8BitDo receivers in X-input mode): 00 08 00 L R 00 00 00
  *   DualShock 4 USB: report 05, flags 01 (rumble only), [4] weak, [5] strong */
 static void usb_send_rumble(usb_slot_device_t *dev, int is_xbox_one)
 {
+    long test_until = dev->rum_test_until;
+    if (test_until && now_ms() >= test_until) {
+        dev->rum_strong = dev->rum_weak = 0;
+        dev->rum_test_until = 0;
+    }
     uint8_t s = dev->rum_strong, w = dev->small_motor ? dev->rum_weak : 0;
     int changed = s != dev->rum_sent_strong || w != dev->rum_sent_weak;
     if (!dev->use_fs || !dev->has_out) return;
@@ -504,7 +511,7 @@ static void usb_send_rumble(usb_slot_device_t *dev, int is_xbox_one)
         return;
     } else if (is_xbox_one) {
         uint8_t pkt[13] = { 0x09, 0x00, dev->gip_seq++, 0x09, 0x00, 0x0F, 0x00, 0x00,
-                            (uint8_t)(s * 100 / 255), (uint8_t)(w * 100 / 255), 0xFF, 0x00, 0x00 };
+                            (uint8_t)(s * 100 / 255), (uint8_t)(w * 100 / 255), 0xFF, 0x00, 0xFF };
         r = usb_fs_send_packet(dev, pkt, sizeof pkt, 8);
     } else if (dev->type == CTRL_XBOX_XINPUT || dev->type == CTRL_8BITDO_ADAPTER) {
         uint8_t pkt[8] = { 0x00, 0x08, 0x00, s, w, 0x00, 0x00, 0x00 };
@@ -1079,9 +1086,23 @@ int usb_hotplug_any(void)
 void usb_hotplug_set_rumble(int slot, uint8_t strong, uint8_t weak)
 {
     if (slot < 0 || slot >= MAX_SLOTS || !g_usb_hotplug.devices[slot].active) return;
+    if (g_usb_hotplug.devices[slot].rum_test_until) return; /* a test from the dashboard has the motors */
     /* Plain stores: the reader thread picks the pair up on its next tick. */
     g_usb_hotplug.devices[slot].rum_strong = strong;
     g_usb_hotplug.devices[slot].rum_weak = weak;
+}
+
+int usb_hotplug_rumble_test(int slot, uint8_t strong, uint8_t weak, int ms)
+{
+    if (slot < 0 || slot >= MAX_SLOTS || !g_usb_hotplug.devices[slot].active) return 0;
+    if (ms < 100) ms = 100;
+    if (ms > 3000) ms = 3000;
+    usb_slot_device_t *d = &g_usb_hotplug.devices[slot];
+    d->rum_test_until = now_ms() + ms;
+    d->rum_strong = strong;
+    d->rum_weak = weak;
+    log_line("usb_hotplug: slot %d rumble test strong %u weak %u for %d ms", slot, strong, weak, ms);
+    return 1;
 }
 
 void usb_hotplug_reload_configs(void)

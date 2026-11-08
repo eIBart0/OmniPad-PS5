@@ -327,9 +327,10 @@
         <div><div class="t">Small motor</div><div class="h">Drive the secondary rumble motor too. Turn it off if this pad buzzes or rattles.</div></div>
         <div class="sw" id="sw-small2" tabindex="0" role="switch" aria-checked="true" aria-label="Small motor"></div>
       </div>
-      <div class="h" id="simpleNote" style="display:none;color:var(--dim);font-size:12.5px;margin:2px 2px 0">USB controllers have no unique ID, so this applies to every connected pad of this model. Rumble reaches USB pads through Game rumble via Avcap2 in Settings.</div>
+      <div class="h" id="simpleNote" style="display:none;color:var(--dim);font-size:12.5px;margin:2px 2px 0">USB controllers have no unique ID, so this applies to every connected pad of this model. In games, rumble reaches USB pads through Game rumble via Avcap2 in Settings; Test rumble works without it.</div>
       <div class="mapfoot">
         <span class="st" id="simpleStatus"></span>
+        <button class="btn" id="testRumble" style="display:none">Test rumble</button>
         <button class="btn primary" id="saveSimple">Save for this controller</button>
       </div>
     </div>
@@ -696,6 +697,13 @@ function showCfgView(){
     $("simpleName").textContent = `Player ${p.player} · ${padLabel(p)}`;
     $("simpleMac").textContent = p.usb ? `${CONN_NAME[p.conn]||"USB"} · ${hex4(p.vid)}:${hex4(p.pid)}` : p.mac;
     $("simpleNote").style.display = p.usb ? "" : "none";
+    $("testRumble").style.display = p.usb ? "" : "none";
+    $("testRumble").onclick = async ()=>{
+      try {
+        const d = await (await api("/api/usb/rumble_test?slot="+(p.player-1),"POST")).json();
+        toast(d.ok ? "Rumble test: 1 second" : "No USB controller in that slot");
+      } catch(e){ toast("Rumble test failed"); }
+    };
   }
 }
 function syncCfgPads(){
