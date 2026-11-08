@@ -45,6 +45,7 @@ typedef struct {
     int                   sw_vib_on;        /* Switch: vibration enabled (subcommand 0x48) */
     long                  rum_sent_at;      /* Switch: last rumble report, for the refresh */
     volatile long         rum_test_until;   /* dashboard rumble test: game levels ignored until then */
+    long                  rum_log_at;       /* diagnostics: last rumble log line */
     volatile int          small_motor;      /* from <map dir>/USB_VVVV_PPPP.map; 1 = on */
 
 #ifdef __PROSPERO__
@@ -527,6 +528,12 @@ static void usb_send_rumble(usb_slot_device_t *dev, int is_xbox_one)
         return;
     }
     if (r >= 0) { dev->rum_sent_strong = s; dev->rum_sent_weak = w; }
+    /* Diagnostics: what reaches the pad, at most once a second, plus every stop. */
+    long tlog = now_ms();
+    if (!(s | w) || tlog - dev->rum_log_at >= 1000) {
+        dev->rum_log_at = tlog;
+        log_line("usb_hotplug: slot %d rumble strong %u weak %u -> %d", dev->slot, s, w, r);
+    }
 }
 
 #endif /* __PROSPERO__ */

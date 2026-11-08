@@ -258,6 +258,8 @@ static void *thread_main(void *arg)
     int64_t h = 0;
     long retry_at = 0, backoff = BACKOFF_FIRST_MS, opened_at = 0;
     unsigned long long chunks = 0;
+    unsigned win_chunks = 0, win_rumble = 0, win_max_s = 0, win_max_w = 0;
+    long win_start = now_ms();
 
     (void)arg;
     while (!g_quit) {
@@ -295,15 +297,36 @@ static void *thread_main(void *arg)
         got = L.read(h, buf, meta, 1);
         if (got > 0) {
             int k = got < DATA_LEN ? got : DATA_LEN;
+            uint8_t ls = 0, lw = 0;
             pthread_mutex_lock(&g_mx);
             haptic_env_feed(&g_env, buf + 8, k, now_ms());
+            haptic_env_levels(&g_env, now_ms(), &ls, &lw);
             pthread_mutex_unlock(&g_mx);
             record_chunk(buf, k, meta, got);
             chunks++;
+            /* Diagnostics: once every 5 s with data, how much of it was rumble. */
+            win_chunks++;
+            if (ls | lw) win_rumble++;
+            if (ls > win_max_s) win_max_s = ls;
+            if (lw > win_max_w) win_max_w = lw;
+            if (now - win_start >= 5000) {
+                log_line("haptic: last 5 s: %u chunks, %u with rumble, max strong %u weak %u",
+                         win_chunks, win_rumble, win_max_s, win_max_w);
+                win_start = now;
+                win_chunks = win_rumble = 0;
+                win_max_s = win_max_w = 0;
+            }
             if (now - opened_at > 10000) backoff = BACKOFF_FIRST_MS;   /* it has been working */
             continue;
         }
         if ((unsigned)got == AVCAP2_EMPTY || (unsigned)got == AVCAP2_OVERRUN) {
+            if (now - win_start >= 5000) {
+                log_line("haptic: last 5 s: %u chunks, %u with rumble, max strong %u weak %u",
+                         win_chunks, win_rumble, win_max_s, win_max_w);
+                win_start = now;
+                win_chunks = win_rumble = 0;
+                win_max_s = win_max_w = 0;
+            }
             usleep(4000);
             continue;
         }
